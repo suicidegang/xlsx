@@ -9,6 +9,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // XLSXReaderError is the standard error type for otherwise undefined
@@ -741,17 +742,26 @@ func readSheetsFromZipFile(f *zip.File, file *File, sheetXMLMap map[string]strin
 	sheetChan := make(chan *indexedSheet, sheetCount)
 
 	go func() {
-		defer close(sheetChan)
-		err = nil
+		var group sync.WaitGroup
+
 		for i, rawsheet := range workbookSheets {
-			if err := readSheetFromFile(sheetChan, i, rawsheet, file, sheetXMLMap); err != nil {
-				return
-			}
+			go func(index int, sheet xlsxSheet) {
+				defer group.Done()
+
+				err := readSheetFromFile(sheetChan, index, sheet, file, sheetXMLMap)
+				if err != nil {
+					panic(err)
+				}
+			}(i, rawsheet)
+
+			group.Add(1)
 		}
+
+		group.Wait()
+		close(sheetChan)
 	}()
 
-	for j := 0; j < sheetCount; j++ {
-		sheet := <-sheetChan
+	for sheet := range sheetChan {
 		if sheet.Error != nil {
 			return nil, nil, sheet.Error
 		}

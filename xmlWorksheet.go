@@ -253,21 +253,43 @@ type xlsxMergeCells struct {
 
 // Return the cartesian extent of a merged cell range from its origin
 // cell (the closest merged cell to the to left of the sheet.
+var cellsCoordinatesMap map[string][2]int = map[string][2]int{}
+
 func (mc *xlsxMergeCells) getExtent(cellRef string) (int, int, error) {
 	if mc == nil {
 		return 0, 0, nil
 	}
+	ref := cellRef + ":"
+	cref := len(ref)
+
 	for _, cell := range mc.Cells {
-		if strings.HasPrefix(cell.Ref, cellRef+":") {
+		if len(cell.Ref) >= cref && cell.Ref[0:cref] == ref {
+			var startx, starty, endx, endy int
+			var err error
+
 			parts := strings.Split(cell.Ref, ":")
-			startx, starty, err := GetCoordsFromCellIDString(parts[0])
-			if err != nil {
-				return -1, -1, err
+			if coords, exists := cellsCoordinatesMap[parts[0]]; exists {
+				startx, starty = coords[0], coords[1]
+			} else {
+				startx, starty, err = GetCoordsFromCellIDString(parts[0])
+				if err != nil {
+					return -1, -1, err
+				}
+
+				cellsCoordinatesMap[parts[0]] = [2]int{startx, starty}
 			}
-			endx, endy, err := GetCoordsFromCellIDString(parts[1])
-			if err != nil {
-				return -2, -2, err
+
+			if coords, exists := cellsCoordinatesMap[parts[1]]; exists {
+				endx, endy = coords[0], coords[1]
+			} else {
+				endx, endy, err = GetCoordsFromCellIDString(parts[1])
+				if err != nil {
+					return -2, -2, err
+				}
+
+				cellsCoordinatesMap[parts[1]] = [2]int{endx, endy}
 			}
+
 			return endx - startx, endy - starty, nil
 		}
 	}
