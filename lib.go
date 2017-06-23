@@ -525,11 +525,6 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 	rows = make([]*Row, rowCount)
 	cols = make([]*Col, colCount)
 	insertRowIndex = minRow
-	for i := range cols {
-		cols[i] = &Col{
-			Hidden: false,
-		}
-	}
 
 	if Worksheet.Cols != nil {
 		// Columns can apply to a range, for convenience we expand the
@@ -560,6 +555,9 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 		rows[rowIndex] = makeEmptyRow(sheet)
 	}
 
+	fmt.Print("Calculating ", len(rows), " rows")
+	fmt.Println()
+
 	numRows := len(rows)
 	for rowIndex := 0; rowIndex < len(Worksheet.SheetData.Row); rowIndex++ {
 		rawrow := Worksheet.SheetData.Row[rowIndex]
@@ -589,10 +587,10 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 
 		insertColIndex = minCol
 		for _, rawcell := range rawrow.C {
-			h, v, err := Worksheet.MergeCells.getExtent(rawcell.R)
-			if err != nil {
-				panic(err.Error())
-			}
+			//h, v, err := Worksheet.MergeCells.getExtent(rawcell.R)
+			//if err != nil {
+			//	panic(err.Error())
+			//}
 			x, _, _ := GetCoordsFromCellIDString(rawcell.R)
 
 			// K1000000: Prevent panic when the range specified in the spreadsheet
@@ -611,8 +609,8 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 
 			if cellX < len(row.Cells) {
 				cell := row.Cells[cellX]
-				cell.HMerge = h
-				cell.VMerge = v
+				//cell.HMerge = h
+				//cell.VMerge = v
 				fillCellData(rawcell, reftable, sharedFormulas, cell)
 				if file.styles != nil {
 					cell.style = file.styles.getStyle(rawcell.S)
@@ -627,6 +625,8 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 		if len(rows) > insertRowIndex {
 			rows[insertRowIndex] = row
 		}
+		fmt.Print("Computing row: ", insertRowIndex)
+		fmt.Println()
 		insertRowIndex++
 	}
 	return rows, cols, colCount, rowCount
