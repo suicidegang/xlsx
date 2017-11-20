@@ -9,7 +9,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 // XLSXReaderError is the standard error type for otherwise undefined
@@ -664,9 +663,9 @@ func readSheetViews(xSheetViews xlsxSheetViews) []SheetView {
 // into a Sheet struct.  This work can be done in parallel and so
 // readSheetsFromZipFile will spawn an instance of this function per
 // sheet and get the results back on the provided channel.
-func readSheetFromFile(sc chan *indexedSheet, index int, rsheet xlsxSheet, fi *File, sheetXMLMap map[string]string) (errRes error) {
+func readSheetFromFile(sc chan<- *indexedSheet, index int, rsheet xlsxSheet, fi *File, sheetXMLMap map[string]string) (errRes error) {
 	result := &indexedSheet{Index: index, Sheet: nil, Error: nil}
-	defer func() {
+	/*defer func() {
 		if e := recover(); e != nil {
 
 			switch e.(type) {
@@ -679,7 +678,7 @@ func readSheetFromFile(sc chan *indexedSheet, index int, rsheet xlsxSheet, fi *F
 			// The only thing here, is if one close the channel. but its not the case
 			sc <- result
 		}
-	}()
+	}()*/
 
 	worksheet, error := getWorksheetFromSheet(rsheet, fi.worksheets, sheetXMLMap)
 	if error != nil {
@@ -741,25 +740,14 @@ func readSheetsFromZipFile(f *zip.File, file *File, sheetXMLMap map[string]strin
 	sheets := make([]*Sheet, sheetCount)
 	sheetChan := make(chan *indexedSheet, sheetCount)
 
-	go func() {
-		var group sync.WaitGroup
-
-		for i, rawsheet := range workbookSheets {
-			go func(index int, sheet xlsxSheet) {
-				defer group.Done()
-
-				err := readSheetFromFile(sheetChan, index, sheet, file, sheetXMLMap)
-				if err != nil {
-					panic(err)
-				}
-			}(i, rawsheet)
-
-			group.Add(1)
+	for index, rawsheet := range workbookSheets {
+		err := readSheetFromFile(sheetChan, index, rawsheet, file, sheetXMLMap)
+		if err != nil {
+			panic(err)
 		}
+	}
 
-		group.Wait()
-		close(sheetChan)
-	}()
+	close(sheetChan)
 
 	for sheet := range sheetChan {
 		if sheet.Error != nil {
