@@ -617,7 +617,7 @@ func readRowsFromSheet(Worksheet *xlsxWorksheet, file *File, sheet *Sheet) ([]*R
 				}
 				cell.date1904 = file.Date1904
 				// Cell is considered hidden if the row or the column of this cell is hidden
-				cell.Hidden = rawrow.Hidden || (len(cols) > cellX && cols[cellX].Hidden)
+				//cell.Hidden = rawrow.Hidden || (len(cols) > cellX && cols[cellX].Hidden)
 				insertColIndex++
 			}
 		}
@@ -680,11 +680,9 @@ func readSheetFromFile(sc chan<- *indexedSheet, index int, rsheet xlsxSheet, fi 
 		}
 	}()*/
 
-	worksheet, error := getWorksheetFromSheet(rsheet, fi.worksheets, sheetXMLMap)
-	if error != nil {
-		result.Error = error
-		sc <- result
-		return error
+	worksheet, err := getWorksheetFromSheet(rsheet, fi.worksheets, sheetXMLMap)
+	if err != nil {
+		panic(err)
 	}
 	sheet := new(Sheet)
 	sheet.File = fi
